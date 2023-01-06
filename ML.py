@@ -1,16 +1,11 @@
-import pandas as pd
-import numpy as np
-from xgboost import XGBClassifier
-from sklearn import tree
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier, AdaBoostRegressor
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import VotingClassifier
 import lightgbm
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
+
 preprocess = StandardScaler()
 BIGGER_DATA = False
 
@@ -34,7 +29,7 @@ def prepare():
         if x in pcaf_problem.keys():
             return pcaf_problem[x]
         else:
-            return mean_PCFAR 
+            return mean_PCFAR
 
     def function_CFA_Step(x):
         if x in pcaf_step.keys():
@@ -56,7 +51,7 @@ def prepare():
         if kc_list:
             for kc in kc_list:
                 if kc in KC:
-                    P_kc *= KC_dic[kc][0]/KC_dic[kc][1]
+                    P_kc *= KC_dic[kc][0] / KC_dic[kc][1]
                 else:
                     P_kc *= KC_avg
         else:
@@ -68,12 +63,16 @@ def prepare():
 
     def encoding_Id(x):
         return sid_dict[x]
+
     def encoding_Problem_Name(x):
         return names_dict[x]
+
     def encoding_Problem_Unit(x):
         return units_dict[x]
+
     def encoding_Problem_Section(x):
         return sections_dict[x]
+
     def encoding_Step_Name(x):
         return sname_dict[x]
 
@@ -84,25 +83,24 @@ def prepare():
     # CFAR Calculation
     for student, group in traindata.groupby(['Anon Student Id']):
         pcaf_student[student] = (len(group[group['Correct First Attempt'] == 1]), len(group['Correct First Attempt']))
-    
+
     for problem, group in traindata.groupby(['Problem Name']):
         pcaf_problem[problem] = 1.0 * len(group[group['Correct First Attempt'] == 1]) / len(group['Correct First Attempt'])
-    
-    
+
     for step, group in traindata.groupby(['Step Name']):
         pcaf_step[step] = 1.0 * len(group[group['Correct First Attempt'] == 1]) / len(group['Correct First Attempt'])
 
     KC = []
-    for _,row in traindata.iterrows():
+    for _, row in traindata.iterrows():
         if pd.isnull(row['KC(Default)']):
             continue
         KC.extend(row['KC(Default)'].split("~~"))
     KC = np.unique(KC)
 
-    KC_dic={}
+    KC_dic = {}
     for kc in KC:
         KC_dic[kc] = [0, 0]
-    for _,row in traindata.iterrows():
+    for _, row in traindata.iterrows():
         kc_list = []
         if not pd.isnull(row['KC(Default)']):
             kc_list = row['KC(Default)'].split("~~")
@@ -110,7 +108,7 @@ def prepare():
         if kc_list:
             for kc in kc_list:
                 KC_dic[kc][1] += 1
-                
+
         if row['Correct First Attempt'] == 1:
             if kc_list:
                 for kc in kc_list:
@@ -122,12 +120,10 @@ def prepare():
         correct += value[0]
         alll += value[1]
 
-
     mean_SCFAR = np.mean(list(map(lambda x: x[0], list(pcaf_student.values()))))
     mean_PCFAR = np.mean(list(pcaf_problem.values()))
-    mean_STCFAR = np.mean(list(pcaf_step.values())) 
-    KC_avg = correct/alll
-
+    mean_STCFAR = np.mean(list(pcaf_step.values()))
+    KC_avg = correct / alll
 
     traindata['CFA_Personal'] = traindata['Anon Student Id'].apply(function_CFA_Personal)
     traindata['CFA_problem'] = traindata['Problem Name'].apply(function_CFA_problem)
@@ -195,7 +191,7 @@ def train():
             'Step Name', 'Problem Name', 'Problem View', 'KC_num', 'CFA_Step', 'CFA_KC']
     train_df = pd.read_csv('train_pre.csv', sep='\t')
     test_df = pd.read_csv('test_pre.csv', sep='\t')
-    
+
     X = train_df.dropna()
     y = np.array(X['Correct First Attempt']).astype(int).ravel()
     del X['Correct First Attempt']
@@ -203,20 +199,22 @@ def train():
     yy = np.array(XX['Correct First Attempt']).astype(int).ravel()
     del XX['Correct First Attempt']
 
-    #Normalization
+    # Normalization
     """
     for item in  cols:
         X[item] = preprocess.fit_transform(np.array(X[item]).reshape(-1, 1))
         XX[item] = preprocess.fit_transform(np.array(XX[item]).reshape(-1, 1)) 
     """
 
-    clf = VotingClassifier(estimators = [('rf', RandomForestClassifier(n_estimators=50, criterion='gini', max_depth=None, min_samples_split=.01,\
-    n_jobs=4, random_state=None, verbose=0)),('lgbm', lightgbm.LGBMClassifier(boosting_type = 'gbdt', objective='binary', max_depth=4, num_leaves = 31,\
-            learning_rate=0.1, n_estimators=2150, n_jobs=-1,silent=0, min_child_weight=1, seed=33, subsample=0.85, subsample_freq = 1, boost_from_average = False, reg_lambda = 0.12, \
-                verbose = -1))], voting = 'soft', weights=[1,1.5]) 
+    clf = VotingClassifier(estimators=[('rf', RandomForestClassifier(n_estimators=50, criterion='gini', max_depth=None, min_samples_split=.01,
+                                                                     n_jobs=4, random_state=None, verbose=0)),
+                                       ('lgbm', lightgbm.LGBMClassifier(boosting_type='gbdt', objective='binary', max_depth=4, num_leaves=31,
+                                                                        learning_rate=0.1, n_estimators=2150, n_jobs=-1, min_child_weight=1, seed=33, subsample=0.85, subsample_freq=1,
+                                                                        boost_from_average=False, reg_lambda=0.12,
+                                                                        verbose=-1))], voting='soft', weights=[1, 1.5])
     clf.fit(X, y)
     y_pred = clf.predict_proba(XX)[:, 1]
-    print ('VoteClassifier', np.sqrt(mean_squared_error(y_pred, yy)))
+    print('VoteClassifier', np.sqrt(mean_squared_error(y_pred, yy)))
 
     XX_withnan = test_df
     yy_withnan = np.array(XX_withnan['Correct First Attempt']).astype(float).ravel()
