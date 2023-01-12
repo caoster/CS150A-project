@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, col
 from sklearn.preprocessing import StandardScaler
 from pyspark import SparkContext, SQLContext
 
@@ -15,10 +15,11 @@ cols = ['CFA_Personal', 'CFA_problem', 'Anon Student Id', 'Problem Unit', 'Probl
 sc = SparkContext('local')
 sqlContext = SQLContext(sc)
 
-traindata = sqlContext.read.csv(train_file, sep='\t', header=True).toPandas()
-testdata = sqlContext.read.csv(test_file, sep='\t', header=True).toPandas()
+traindata = sqlContext.read.csv(train_file, sep='\t', header=True)
+testdata = sqlContext.read.csv(test_file, sep='\t', header=True)
 
 
+@udf
 def function_CFA_Personal(x):
     if x in pcaf_student.keys():
         return pcaf_student[x][0]
@@ -26,6 +27,7 @@ def function_CFA_Personal(x):
         return mean_SCFAR
 
 
+@udf
 def function_CFA_problem(x):
     if x in pcaf_problem.keys():
         return pcaf_problem[x]
@@ -33,6 +35,7 @@ def function_CFA_problem(x):
         return mean_PCFAR
 
 
+@udf
 def function_CFA_Step(x):
     if x in pcaf_step.keys():
         return pcaf_step[x]
@@ -40,6 +43,7 @@ def function_CFA_Step(x):
         return mean_STCFAR
 
 
+@udf
 def function_KC_num(x):
     if pd.isnull(x):
         return 0
@@ -47,6 +51,7 @@ def function_KC_num(x):
         return x.count('~~') + 1
 
 
+@udf
 def func_kc(x):
     kc_list = []
     if not pd.isnull(x):
@@ -63,56 +68,54 @@ def func_kc(x):
     return P_kc
 
 
+@udf
 def function_Oppo_Mean(x):
-    if x == "None":
+    if x is None or x == "None":
         return 0
     return np.mean(list(map(int, x.replace('nan', '0').split('~~'))))
 
 
+@udf
 def encoding_Id(x):
     return sid_dict[x]
 
 
+@udf
 def encoding_Problem_Name(x):
     return names_dict[x]
 
 
+@udf
 def encoding_Problem_Unit(x):
     return units_dict[x]
 
 
+@udf
 def encoding_Problem_Section(x):
     return sections_dict[x]
 
 
+@udf
 def encoding_Step_Name(x):
     return sname_dict[x]
 
 
-pcaf_student = {}
-pcaf_problem = {}
-pcaf_step = {}
-
 # CFAR Calculation
-for student, group in traindata.groupby(['Anon Student Id']):
-    pcaf_student[student] = (len(group[group['Correct First Attempt'] == 1]), len(group['Correct First Attempt']))
+ID_groups = [x[0] for x in traindata.select('Anon Student Id').distinct().collect()]
+ID_groups_list = [(x, traindata.filter(col('Anon Student Id') == x)) for x in ID_groups]
+pcaf_student = {student: (group.filter(col('Correct First Attempt') == 1).count(), group.select('Correct First Attempt').count()) for student, group in ID_groups_list}
 
-for problem, group in traindata.groupby(['Problem Name']):
-    pcaf_problem[problem] = 1.0 * len(group[group['Correct First Attempt'] == 1]) / len(group['Correct First Attempt'])
+Problem_name_groups = [x[0] for x in traindata.select('Problem Name').distinct().collect()]
+Problem_name_groups_list = [(x, traindata.filter(col('Problem Name') == x)) for x in ID_groups]
+pcaf_problem = {problem: 1.0 * group.filter(col('Correct First Attempt') == 1).count() / group.select('Correct First Attempt').count() for problem, group in Problem_name_groups_list}
 
-for step, group in traindata.groupby(['Step Name']):
-    pcaf_step[step] = 1.0 * len(group[group['Correct First Attempt'] == 1]) / len(group['Correct First Attempt'])
+Step_name_groups = [x[0] for x in traindata.select('Problem Name').distinct().collect()]
+Step_name_groups_list = [(x, traindata.filter(col('Problem Name') == x)) for x in ID_groups]
+pcaf_step = {step: 1.0 * group.filter(col('Correct First Attempt') == 1).count() / group.select('Correct First Attempt').count() for step, group in Step_name_groups_list}
 
-KC = []
-for _, row in traindata.iterrows():
-    if pd.isnull(row['KC(Default)']):
-        continue
-    KC.extend(row['KC(Default)'].split("~~"))
-KC = np.unique(KC)
+KC = np.unique([row['KC(Default)'].split("~~") for row in traindata if not pd.isnull(row['KC(Default)'])])
 
-KC_dic = {}
-for kc in KC:
-    KC_dic[kc] = [0, 0]
+KC_dic = {kc: [0, 0] for kc in KC}
 for _, row in traindata.iterrows():
     kc_list = []
     if not pd.isnull(row['KC(Default)']):
@@ -158,31 +161,20 @@ testdata['CFA_KC'] = testdata['KC(Default)'].apply(func_kc)
 test_x = testdata[cols].copy()
 test_x['Oppo_Mean'] = testdata['Opportunity(Default)'].astype("str").apply(function_Oppo_Mean)
 
-sid_dict = {}
-names_dict = {}
-units_dict = {}
-sections_dict = {}
-sname_dict = {}
-
 sids = list(set(train_x['Anon Student Id']).union(set(test_x['Anon Student Id'])))
-for index, sid in enumerate(sids):
-    sid_dict[sid] = index
+sid_dict = {sid: index for index, sid in enumerate(sids)}
 
 names = list(set(train_x['Problem Name']).union(set(test_x['Problem Name'])))
-for index, name in enumerate(names):
-    names_dict[name] = index
+names_dict = {name: index for index, name in enumerate(names)}
 
 units = list(set(train_x['Problem Unit']).union(set(test_x['Problem Unit'])))
-for index, hierarchy in enumerate(units):
-    units_dict[hierarchy] = index
+units_dict = {hierarchy: index for index, hierarchy in enumerate(units)}
 
 sections = list(set(train_x['Problem Section']).union(set(test_x['Problem Section'])))
-for index, hierarchy in enumerate(sections):
-    sections_dict[hierarchy] = index
+sections_dict = {hierarchy: index for index, hierarchy in enumerate(sections)}
 
 sname = list(set(train_x['Step Name']).union(set(test_x['Step Name'])))
-for index, name in enumerate(sname):
-    sname_dict[name] = index
+sname_dict = {name: index for index, name in enumerate(sname)}
 
 train_x['Anon Student Id'] = train_x['Anon Student Id'].apply(encoding_Id)
 test_x['Anon Student Id'] = test_x['Anon Student Id'].apply(encoding_Id)
