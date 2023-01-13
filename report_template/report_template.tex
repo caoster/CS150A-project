@@ -22,15 +22,15 @@
 \usepackage{microtype}      % microtypography
 \usepackage{cite}
 \usepackage{amsmath}
-\usepackage{graphicx} 
+\usepackage{graphicx}
 
-\usepackage{algorithm}  
-\usepackage{algpseudocode}  
-\usepackage{amsmath}  
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}  % Use Input in the format of Algorithm  
 \renewcommand{\algorithmicensure}{\textbf{Output:}} % Use Output in the format of Algorithm  
 
-\hypersetup{colorlinks,linkcolor={blue},citecolor={blue},urlcolor={blue}}  
+\hypersetup{colorlinks, linkcolor={blue}, citecolor={blue}, urlcolor={blue}}
 
 \title{CS150A Database \\Course Project}
 
@@ -39,104 +39,123 @@
 % authors: \And and \AND.
 %
 % Using \And between authors leaves it to LaTeX to determine where to
-% break the lines. Using \AND forces a line break at that point. So,
+% break the lines. Using \AND forces a line break at that point. So, 
 % if LaTeX puts 3 of 4 authors names on the first line, and the last
 % on the second line, try using \AND instead of \And before the third
 % author name.
 
 \author{
-	Student 1\\
-	ID: 2020533166\\
-	\texttt{chenzheng@shanghaitech.edu.cn} \\
-	%% examples of more authors
-	\And
-	Student 2\\
-	ID: 2020533185\\
-	\texttt{chenst@shanghaitech.edu.cn}
+    Student 1\\
+    ID: 2020533166\\
+    \texttt{chenzheng@shanghaitech.edu.cn} \\
+    %% examples of more authors
+    \And
+    Student 2\\
+    ID: 2020533185\\
+    \texttt{chenst@shanghaitech.edu.cn}
 }
 
 \begin{document}
-	% \nipsfinalcopy is no longer used
-	
-	\maketitle
-	
-	\begin{abstract}
-		
-	\end{abstract}
-	
-	\section{Explore the dataset}
-	\subsection{data type}
-	There are totally 19 kinds of features,which can be categorized into 2 types: categorical features like Anon Student Id, Problem Name which we should choice a way to encode, and numerical features like problem view and opportunity.
-	\subsection{distribution of features}
-	
-	\subsection{missing value}
-	The KC, Opportunity have missing value.While Anon Student Id,Problem Name,Step Name,Problem Hierarchy, Problem View don't.
-	
-	\section{Data cleaning}
-	\subsection{missing values and the outliers}
-	For the missing value,we will use mean-value of that feature to replace.
-	For the outliers,we deal with $3\sigma$ law, for each features, we will caculate the mean $\mu$ and standard deviation $\sigma$, for value isn't between the range $(\mu-3\sigma, \mu+3\sigma)$, we will see it as outliers and abandon it.
-	\subsection{data normalization}
-	On our vote model, We try standardization with the RMSE 0.363  and normalization with the RMSE 0.368,but without these, we can get RMSE 0.347,so we abondon them.
-	\section{Feature engineering}
-	
-	We ignore the 11 attributes which test data don't have and Row.Focus on left 7 ones.
-	
-	For Problem Hierarchy,we find it include Unit and Section,consider that each Unit and each Section within one Unit will have different difficulty.So we replace origin feature  Problem Hierarchy by Problem Unit and Problem Section.
-	
-	Different student have different pesonal ability,so CFA have great relation with Anon Student Id.different problem and Step have different difficulty to slove while different KC have different difficulty to master,so CFA have great relation with Problem Name,Step and KC.
-	$$CFA\_\{features\ name\}=correct\ rate=\frac{number\  of\  CFA \ within\ this\ feature=1}{number\ of\ CFA\ within \ this\ feature= 1\ or\ 0}$$
-	So we replace these 4 features by 4 new features,CFA\_Personal,CFA\_problem,CFA\_Step and CFA\_KC.
-	
-	If the number of the skills or the times each skill used that are used in a problem is more, which shows this problem is more complicated, both of these will affect the CFA.
-	So we add 2 new features KC\_num and  Opportunity\_num to donated them.
-	
-	We should encode the categorical feature:Anon Student Id,Problem Name, Problem Unit, Problem Section, Step Name.We try \textbf{dummy},but just Problem Name will add 1021 dimensions,and don't include much information.And we also try the \textbf{Bayesian Target Encode},but many features values don't apear in train data,which are hard to encoder.And both these two encoding way's result seems don't well,so we try
-	\section{Learning algorithm}
-	We choice \textbf{RandomForest},\textbf{XGBoost},\textbf{LGBM} which are traditional tree classification algorithm be propitious to process of high dimensional data sets and deal with imbalance data.
-	We also choice \textbf{Naïve Bayes} which isn't very sensitive to missing data and have an elegant mathematical explainability.
-	And since there exists temporal information in data,with the passage of time, students do more questions, students' ability will also rise,so we try \textbf{GRU} which is a kind of RNN deep algorithm,but due to the difficulty to find a fit parameters,it didn't get a better result than traditional classification algorithm.We also try a encoder-decoder struct network desighed by ourselves with the RMSE=0.39,so we abondon it.
-	\begin{table}[htb]
-		\centering
-		\caption{improve for SSD in small target detection}
-		\label{table1}
-		\begin{tabular}{|c|c|c|c|c|c|c|}
-			\hline
-			{algorithm} & {XGBoost} & {RandomForest} & {LGBM} & {vote} &{Naïve Bayes} &{GRU}\\
-			\hline
-			
-			{RMSE} &{0.354}	&{0.364}	&{0.356}	&{0.347}	&{0.378} &{0.367}\\ 
-			\hline
-			
-		\end{tabular}
-		\label{performance of each algorithm}
-	\end{table}
-	
-	\section{Hyperparameter selection and model performance}
-	We use RandomSearchCV,which can improve optimization efficiency in some cases by introducing random factors.For hyperparameters whose search range is list, sample in the given list with same probability.
-	
-	
-	\begin{table}[htb]
-		\centering
-		\caption{XGboost optial parameters search}
-		\label{table1}
-		\begin{tabular}{|c|c|c|}
-			\hline
-			{Parameters} & {Range} & {optimal value}\\
-			\hline
-			{ n$\_$estimatiors} & {(80,200,4)} & {104} \\
-			\hline
-			{ max$\_$depth } & {(2,15,1)} & {13} \\
-			\hline
-			{  learning$\_$rate  } & {(0.01,2,20)} & {0.01} \\
-			\hline
-			{  colsample$\_$bytree} & {(0.5,0.98,10)} &  { 0.607 } \\
-			\hline
-			{  min$\_$child$\_$weight  } & {(1,9,1)} & {3} \\
-			\hline
-		\end{tabular}
-		\label{performance of each algorithm}
-	\end{table}
-	
-	\section{PySpark implementation (optional)}
+    % \nipsfinalcopy is no longer used
+
+    \maketitle
+
+    \begin{abstract}
+
+    \end{abstract}
+
+
+    \section{Explore the dataset}\label{sec:explore-the-dataset}
+
+    \subsection{data type}
+    There are totally 19 kinds of features, which can be categorized into 2 types: categorical features like Anon Student Id, Problem Name which we should choose a way to encode, and numerical features like problem view and opportunity.
+
+    \subsection{distribution of features}
+
+    \subsection{missing value}
+    The KC, Opportunity have missing value.While Anon Student Id, Problem Name, Step Name, Problem Hierarchy, Problem View don't.
+
+
+    \section{Data cleaning}\label{sec:data-cleaning}
+
+    \subsection{missing values and the outliers}
+    For the missing value, we will use mean-value of that feature to replace.
+    For the outliers, we deal with $3\sigma$ law, for each feature, we will calculate the mean $\mu$ and standard deviation $\sigma$, for value isn't between the range $(\mu-3\sigma, \mu+3\sigma)$, we will see it as outliers and abandon it.
+
+    \subsection{data normalization}
+    On our vote model, We try standardization with the RMSE=0.363 and normalization with the RMSE=0.368, but without these, we can get RMSE=0.347, so we abandon them.
+
+
+    \section{Feature engineering}\label{sec:feature-engineering}
+
+    We ignore the 11 attributes which test data don't have and Row.
+	Focus on left 7 ones.
+
+    For Problem Hierarchy, we find it include Unit and Section, consider that each Unit and each Section within one Unit will have different difficulty.So we replace origin feature Problem Hierarchy by Problem Unit and Problem Section.
+
+    Different student have different personal ability, so CFA have great relation with `Anon Student Id`.
+	Different problem and Step have different difficulty to slove while different KC have different difficulty to master, so CFA have great relation with Problem Name, Step and KC.
+    \[CFA\_\{features\ name\}=correct\ rate=\frac{number\  of\  CFA \ within\ this\ feature=1}{number\ of\ CFA\ within \ this\ feature= 1\ or\ 0}\]
+    So we replace these 4 features by 4 new features, CFA\_Personal, CFA\_problem, CFA\_Step and CFA\_KC\@.
+
+    If the number of the skills or the times each skill used that are used in a problem is more, which shows this problem is more complicated, both of these will affect the CFA\@.
+    So we add 2 new features KC\_num and Opportunity\_num to donated them.
+
+    We should encode the categorical feature: Anon Student Id, Problem Name, Problem Unit, Problem Section, Step Name.We tried \textbf{dummy}, but just Problem Name will add 1021 dimensions, and don't include much information.And we also try the \textbf{Bayesian Target Encode}, but many features values don't appear in train data, which are hard to encoder.
+	Both these two encoding methods' result didn't seem well, so we denied this approach.
+
+
+    \section{Learning algorithm}\label{sec:learning-algorithm}
+    We had chosen \textbf{RandomForest}, \textbf{XGBoost}, \textbf{LGBM} which are traditional tree classification algorithm be propitious to process of high dimensional data sets and deal with imbalance data.
+    We also choose \textbf{Naïve Bayes} which is not sensitive to missing data and have an elegant mathematical explainability.
+    Since there are temporal information in data, with the passage of time, students do more questions, students' ability will also rise, so we try \textbf{GRU} which is a kind of RNN deep algorithm, but due to the difficulty to find a fit parameters, it didn't get a better result than traditional classification algorithm.
+	We also tried a encoder-decoder struct network designed by ourselves (with very poor behavior of RMSE=0.39), not shown in the final code.
+    \begin{table}[htb]
+        \centering
+        \caption{improve for SSD in small target detection}
+        \label{tab:table1}
+        \begin{tabular}{|c|c|c|c|c|c|c|}
+            \hline
+            {algorithm} & {XGBoost} & {RandomForest} & {LGBM}   & {vote}   & {Naïve Bayes} & {GRU}   \\
+            \hline
+
+            {RMSE}         & {0.354}  & {0.364}       & {0.356} & {0.347} & {0.378}       & {0.367} \\
+            \hline
+
+        \end{tabular}
+        \label{performance of each algorithm}
+    \end{table}
+
+
+    \section{Hyperparameter selection and model performance}\label{sec:hyperparameter-selection-and-model-performance}
+    We use RandomSearchCV, which improves optimization efficiency in most cases by introducing random factors.
+	For hyperparameters whose search range is the whole list, sample in the given list with same probability.
+
+
+    \begin{table}[htb]
+        \centering
+        \caption{XGboost optial parameters search}
+        \label{tab:table2}
+        \begin{tabular}{|c|c|c|}
+            \hline
+            {Parameters}          & {Range}           & {optimal value} \\
+            \hline
+            { n$\_$estimatiors}      & {(80, 200, 4)}    & {104}           \\
+            \hline
+            { max$\_$depth }         & {(2, 15, 1)}      & {13}            \\
+            \hline
+            {  learning$\_$rate  }       & {(0.01, 2, 20)}   & {0.01}          \\
+            \hline
+            {  colsample$\_$bytree}    & {(0.5, 0.98, 10)} & { 0.607 }       \\
+            \hline
+            {  min$\_$child$\_$weight  } & {(1, 9, 1)}       & {3}             \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+
+    \section{PySpark implementation (optional)}\label{sec:pyspark-implementation-(optional)}
+    We have harnessed pyspark to accelerate the preprocessing part.
+    The train part does not need any help from pyspark as \textbf{pandas} and \textbf{sklearn} have implemented multiprocessing by default.
+	The preprocessing with \textbf{pyspark} proved to be over 8 (actually 8.61) times faster than naïve implementation on a 12600K CPU with 32G memory.
 \end{document}
