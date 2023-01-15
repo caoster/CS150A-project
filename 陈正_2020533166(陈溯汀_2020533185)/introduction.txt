@@ -1,0 +1,8 @@
+you can run ML.py ,which is our main code which include data preprocess,data train and data predict.
+you can run preprocess.py is the data preprocess code which apply pyspark to speed up.
+If you want to try deep learn algorithm we apply,you could choice to run
+DL.py which is a encode-decode struct network which include 9 layers we apply.
+DL.keras.py apply a GRU which achieve by keras
+DL.pytorch.py apply a GRU which achieve by pytorch
+you may need a GPU and corresponding pytorch version.
+you can also try our pre-train model.
